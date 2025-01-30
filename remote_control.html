@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ジョイスティック</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f7f7f7;
+            overflow: hidden; /* スクロールを禁止 */
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .joystick-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .joystick {
+            width: 80px;
+            height: 80px;
+            border: 2px solid #4CAF50;
+            border-radius: 50%;
+            position: relative;
+        }
+        .knob {
+            width: 40px;
+            height: 40px;
+            background-color: #4CAF50;
+            border-radius: 50%;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+        }
+        .button {
+            display: inline-block;
+            width: 160px;
+            height: 60px;
+            margin: 10px;
+            font-size: 16px;
+            line-height: 40px;
+            text-align: center;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        .button:active {
+            background-color: #45a049;
+        }
+        .netflix, .youtube, .enter, .foreground {
+            background-color: #FF0000;
+        }
+        .input-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        #appNameInput {
+            padding: 5px;
+            font-size: 16px;
+        }
+        .dpad-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .dpad-button {
+            width: 50px;
+            height: 50px;
+            margin: 5px;
+            font-size: 24px;
+            line-height: 50px;
+            text-align: center;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        .input-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 5px;
+        }
+        #appNameInput, #textInput {
+            width: 50px;
+            padding: 5px;
+            font-size: 16px;
+            margin: 5px;
+        }        
+    </style>
+</head>
+<body>
+    <div class="container">
+    <div class="dpad-container">
+        
+        <div class="joystick" id="joystick">
+            <div class="knob" id="knob"></div>
+        </div>
+        <div class="dpad-container">
+        <div class="dpad-button" onclick="sendCommand('up')">↑</div>
+        <div class="dpad-button" onclick="sendCommand('down')">↓</div>
+        </div>
+    </div>
+    <div class="button enter" onclick="sendCommand('click')">Click</div>
+    <div class="button foreground" onclick="sendCommand('back')">Back</div>
+    <div class="button netflix" onclick="sendCommand('netflix')">Netflix</div>
+    <div class="button youtube" onclick="sendCommand('youtube')">YouTube</div>
+    
+    <div class="input-container">
+        <input type="text" id="textInput" placeholder="Enter text">
+        <button class="button" onclick="sendText()">Send Text</button>
+    </div>
+</div>
+    <script>
+        const joystick = document.getElementById('joystick');
+        const knob = document.getElementById('knob');
+        let startX, startY, initialX, initialY;
+
+        // ページ全体のスクロールを無効化するためのイベントリスナーを追加
+        document.addEventListener('touchmove', function(event) {
+            event.preventDefault();
+        }, { passive: false });
+
+        joystick.addEventListener('touchstart', startDrag, false);
+        joystick.addEventListener('touchmove', drag, false);
+        joystick.addEventListener('touchend', endDrag, false);
+
+        function startDrag(event) {
+            event.preventDefault();
+            const touch = event.touches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+            initialX = knob.offsetLeft;
+            initialY = knob.offsetTop;
+        }
+
+        function drag(event) {
+            event.preventDefault();
+            const touch = event.touches[0];
+            const dx = touch.clientX - startX;
+            const dy = touch.clientY - startY;
+            const newX = Math.min(Math.max(initialX + dx, 0), joystick.clientWidth - knob.clientWidth);
+            const newY = Math.min(Math.max(initialY + dy, 0), joystick.clientHeight - knob.clientHeight);
+            knob.style.left = `${newX}px`;
+            knob.style.top = `${newY}px`;
+
+            // マウスカーソルを動かすシミュレーション
+            sendMousePosition(dx, dy);
+        }
+
+        function endDrag(event) {
+            event.preventDefault();
+            knob.style.left = '20px';
+            knob.style.top = '20px';
+            sendMousePosition(0, 0);
+        }
+
+        function sendMousePosition(dx, dy) {
+            fetch('http://100.64.1.74:5000/move_mouse', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ dx: dx, dy: dy })
+            }).then(response => {
+                if (response.ok) {
+                    console.log(`Mouse moved by (${dx}, ${dy})`);
+                } else {
+                    console.error('Failed to move mouse');
+                }
+            });
+        }
+
+        function sendCommand(command) {
+            fetch('http://100.64.1.74:5000/press_key', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `key=${command}`
+            }).then(response => {
+                if (response.ok) {
+                    console.log(`${command} コマンドが送信されました`);
+                } else {
+                    console.error('コマンド送信に失敗しました');
+                }
+            });
+        }
+
+        function bringToForeground() {
+            const appName = document.getElementById('appNameInput').value;
+            fetch('http://100.64.1.74:5000/press_key', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `key=foreground&app_name=${appName}`
+            }).then(response => {
+                if (response.ok) {
+                    console.log(`${appName} が最前面に移動しました`);
+                } else {
+                    console.error('最前面に移動できませんでした');
+                }
+            });
+        }
+        function sendText() {
+            const text = document.getElementById('textInput').value;
+            fetch('http://100.64.1.74:5000/send_text', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `text=${text}`
+            }).then(response => {
+                if (response.ok) {
+                    console.log(`Text sent: ${text}`);
+                } else {
+                    console.error('Text sending failed');
+                }
+            });
+        }
+    </script>
+    
+</body>
+</html>
